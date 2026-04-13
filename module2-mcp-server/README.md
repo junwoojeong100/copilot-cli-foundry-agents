@@ -1,0 +1,278 @@
+# 모듈 2: MCP 서버 연결
+
+## 🎯 학습 목표
+
+이 모듈을 완료하면 다음을 할 수 있습니다:
+
+- **MCP(Model Context Protocol)**의 핵심 개념을 이해한다
+- 간단한 MCP 서버를 직접 구현하고 실행한다
+- Azure AI Foundry Agent에 MCP 서버를 연결하여 외부 도구를 사용한다
+
+---
+
+## 📖 MCP(Model Context Protocol) 핵심 개념
+
+### MCP란 무엇인가?
+
+MCP(Model Context Protocol)는 AI 모델이 외부 도구, 데이터 소스, 서비스와 **표준화된 방식**으로 통신할 수 있게 해주는 개방형 프로토콜입니다.
+
+> 💡 **"AI의 USB-C"** — USB-C가 다양한 기기를 하나의 표준 커넥터로 연결하듯, MCP는 다양한 AI 도구를 하나의 표준 프로토콜로 연결합니다.
+
+### 핵심 특징
+
+| 특징 | 설명 |
+|------|------|
+| **JSON-RPC 2.0 기반** | 표준화된 요청/응답 형식으로 통신합니다 |
+| **도구 자동 발견** | 클라이언트가 서버에 연결하면 사용 가능한 도구 목록을 자동으로 발견합니다 |
+| **전송 독립적** | stdio, HTTP(SSE), WebSocket 등 다양한 전송 방식을 지원합니다 |
+| **양방향 통신** | 클라이언트와 서버가 양방향으로 메시지를 주고받습니다 |
+
+### MCP 아키텍처
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    AI Application                       │
+│  (Azure AI Foundry Agent / GitHub Copilot / Claude)     │
+└──────────────────────┬──────────────────────────────────┘
+                       │  MCP Protocol (JSON-RPC 2.0)
+                       │
+        ┌──────────────┼──────────────┐
+        ▼              ▼              ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  MCP Server  │ │  MCP Server  │ │  MCP Server  │
+│   (날씨)     │ │  (데이터베이스)│ │   (검색)     │
+└──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+       │                │                │
+       ▼                ▼                ▼
+  [Weather API]    [Database]     [Search Engine]
+```
+
+### MCP 통신 흐름
+
+```
+클라이언트 (Agent)              MCP 서버 (Weather)
+      │                              │
+      │──── initialize ──────────────▶│  1. 연결 초기화
+      │◀─── capabilities ────────────│  2. 서버 기능 응답
+      │                              │
+      │──── tools/list ──────────────▶│  3. 도구 목록 요청
+      │◀─── [get_weather, ...] ──────│  4. 사용 가능한 도구 반환
+      │                              │
+      │──── tools/call ──────────────▶│  5. 도구 실행 요청
+      │     {name: "get_weather",     │     (get_weather 호출)
+      │      args: {city: "서울"}}    │
+      │◀─── result ──────────────────│  6. 실행 결과 반환
+      │     "서울: 맑음, 22°C"        │
+      │                              │
+```
+
+---
+
+## 🔧 사전 준비
+
+### 1. 필수 패키지 설치
+
+```bash
+# 프로젝트 루트에서 실행
+pip install -r requirements.txt
+```
+
+### 2. 환경 변수 설정
+
+프로젝트 루트의 `.env` 파일에 다음 값이 설정되어 있어야 합니다:
+
+```env
+PROJECT_ENDPOINT=https://<your-project>.services.ai.azure.com/api/projects/<project-name>
+MODEL_DEPLOYMENT_NAME=gpt-4o
+```
+
+### 3. Azure 인증
+
+```bash
+# Azure CLI로 로그인
+az login
+```
+
+---
+
+## 🧪 실습 1: 간단한 MCP 서버 구현
+
+### 파일: `mcp_server/weather_server.py`
+
+이 실습에서는 날씨 정보를 제공하는 간단한 MCP 서버를 구현합니다.
+
+#### 주요 구성 요소
+
+1. **FastMCP 서버 생성**: `mcp` 라이브러리의 `FastMCP`를 사용하여 서버 인스턴스를 생성합니다
+2. **도구(Tool) 정의**: `@mcp.tool()` 데코레이터로 AI가 호출할 수 있는 함수를 등록합니다
+3. **서버 실행**: stdio 전송 방식으로 서버를 시작합니다
+
+#### 핵심 코드 설명
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+# MCP 서버 인스턴스 생성
+mcp = FastMCP("weather")
+
+# 도구 등록 - AI가 이 함수를 자동으로 발견하고 호출할 수 있습니다
+@mcp.tool()
+def get_weather(city: str) -> str:
+    """도시의 현재 날씨를 조회합니다."""
+    return f"{city}: 맑음, 22°C"
+```
+
+#### 실행 방법
+
+```bash
+# MCP 서버 직접 실행 (stdio 모드)
+python mcp_server/weather_server.py
+```
+
+### 파일: `01_mcp_server_basic.py`
+
+MCP 서버를 프로그래밍 방식으로 시작하고 클라이언트로 테스트하는 스크립트입니다.
+
+#### 실행 방법
+
+```bash
+cd module2-mcp-server
+python 01_mcp_server_basic.py
+```
+
+#### 예상 출력
+
+```
+🔧 MCP 서버 기본 테스트
+============================================================
+
+📡 MCP 서버에 연결 중...
+✅ 서버 연결 성공!
+
+📋 사용 가능한 도구 목록:
+  - get_weather: 도시의 현재 날씨를 조회합니다.
+  - get_forecast: 도시의 날씨 예보를 조회합니다.
+
+🌤️ 도구 호출 테스트: get_weather("서울")
+📍 결과: 서울의 현재 날씨: 맑음, 22°C, 습도 45%
+
+📅 도구 호출 테스트: get_forecast("부산", days=5)
+📍 결과: ...
+
+✅ MCP 서버 기본 테스트 완료!
+```
+
+---
+
+## 🧪 실습 2: Foundry Agent에 MCP 서버 연결
+
+### 파일: `02_agent_with_mcp.py`
+
+Azure AI Foundry Agent에 MCP 서버를 연결하여 AI가 날씨 도구를 사용하도록 합니다.
+
+#### 핵심 코드 설명
+
+```python
+from azure.ai.projects.models import MCPTool
+
+# MCP 도구 생성 - 로컬 MCP 서버를 Agent에 연결
+mcp_tool = MCPTool(
+    server_label="weather",
+    server_url="http://localhost:8080/mcp"
+)
+
+# Agent 생성 시 MCP 도구 포함
+agent = project.agents.create_agent(
+    model=model_name,
+    name="날씨-에이전트",
+    instructions="MCP 서버의 날씨 도구를 활용하여 날씨 질문에 답하세요.",
+    tools=[mcp_tool],
+)
+```
+
+#### 실행 방법
+
+```bash
+# 1. 먼저 MCP 서버를 실행합니다 (별도 터미널)
+python mcp_server/weather_server.py
+
+# 2. Agent 스크립트를 실행합니다
+cd module2-mcp-server
+python 02_agent_with_mcp.py
+```
+
+#### 예상 출력
+
+```
+🤖 MCP 도구를 사용하는 Foundry Agent
+============================================================
+
+🔧 MCP 도구 설정 중...
+🤖 Agent 생성 완료: agent_xxxxx
+
+💬 메시지 전송: "서울의 현재 날씨를 알려주세요"
+⏳ Agent 실행 중...
+
+📨 Agent 응답:
+서울의 현재 날씨는 맑음이며, 기온은 22°C, 습도는 45%입니다.
+
+🧹 리소스 정리 완료
+```
+
+---
+
+## 🏗️ MCP 서버 아키텍처 다이어그램
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                     이 모듈의 구조                              │
+├───────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌─────────────────┐        ┌─────────────────────────────┐  │
+│  │ 01_mcp_server   │        │   02_agent_with_mcp.py      │  │
+│  │ _basic.py       │        │                             │  │
+│  │                 │        │   Azure AI Foundry Agent     │  │
+│  │  MCP Client     │        │   + MCPTool                 │  │
+│  └────────┬────────┘        └──────────────┬──────────────┘  │
+│           │                                │                  │
+│           │  stdio / HTTP                  │  HTTP (SSE)      │
+│           │                                │                  │
+│           ▼                                ▼                  │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │              mcp_server/weather_server.py               │  │
+│  │                                                         │  │
+│  │   FastMCP("weather")                                    │  │
+│  │   ├── get_weather(city) → 현재 날씨 정보               │  │
+│  │   └── get_forecast(city, days) → 날씨 예보             │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📝 핵심 정리
+
+| 개념 | 설명 |
+|------|------|
+| **MCP** | AI 모델과 외부 도구를 연결하는 표준 프로토콜 |
+| **FastMCP** | Python으로 MCP 서버를 쉽게 만들 수 있는 라이브러리 |
+| **@mcp.tool()** | 함수를 MCP 도구로 등록하는 데코레이터 |
+| **MCPTool** | Azure AI Foundry Agent에 MCP 서버를 연결하는 클래스 |
+| **stdio 전송** | 표준 입출력을 통한 MCP 통신 방식 (로컬 개발용) |
+| **HTTP(SSE) 전송** | HTTP를 통한 MCP 통신 방식 (원격 서버용) |
+
+### MCP의 장점
+
+1. **표준화**: 어떤 AI 플랫폼에서든 동일한 도구를 재사용할 수 있습니다
+2. **자동 발견**: 도구 목록과 스키마를 서버가 자동으로 제공합니다
+3. **확장성**: 새로운 도구를 서버에 추가하면 클라이언트가 자동으로 인식합니다
+4. **분리**: 도구 구현과 AI 모델이 독립적으로 개발/배포됩니다
+
+---
+
+## ➡️ 다음 단계
+
+MCP 서버 연결을 마스터했다면, 다음 모듈로 진행하세요:
+
+👉 [모듈 3: Foundry IQ & RAG 통합](../module3-foundry-iq-rag/README.md) — Azure AI Foundry의 지식 기반 검색(RAG)을 Agent에 통합하는 방법을 학습합니다.

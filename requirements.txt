@@ -1,0 +1,15 @@
+# Azure AI Foundry Agent SDK v2
+azure-ai-projects>=2.0.0
+azure-identity
+
+# OpenAI
+openai
+
+# MCP (Model Context Protocol)
+mcp[cli]
+
+# Microsoft Agent Framework
+agent-framework
+
+# 유틸리티
+python-dotenv
