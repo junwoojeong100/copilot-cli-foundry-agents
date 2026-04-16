@@ -1,6 +1,103 @@
 # Microsoft AI Agent 실습 가이드
 
+> 🤖 **이 프로젝트는 [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli)로 생성되었습니다.**
+> 프로젝트 구조 설계, 4개 모듈의 실습 가이드 문서, Python 코드, 아키텍처 다이어그램까지
+> 전체 코드베이스가 터미널에서 Copilot CLI와의 대화를 통해 만들어졌습니다.
+
 Microsoft의 최신 AI Agent 기술 스택을 단계별로 학습하는 실습 가이드입니다.
+
+---
+
+## 🛠️ GitHub Copilot CLI란?
+
+<table>
+<tr>
+<td width="120" align="center">
+
+```
+  ___
+ / o \  ←  GitHub
+ \_-_/     Copilot
+  / \      CLI
+```
+
+</td>
+<td>
+
+**GitHub Copilot CLI**는 GitHub Copilot의 에이전트 코딩 능력을 **터미널에서 직접** 사용할 수 있게 해주는 AI 도구입니다.
+
+```bash
+# 설치
+brew install copilot-cli    # macOS
+winget install GitHub.Copilot  # Windows
+
+# 실행
+copilot
+```
+
+</td>
+</tr>
+</table>
+
+### ✨ Copilot CLI의 핵심 장점
+
+| 장점 | 설명 |
+|------|------|
+| **🖥️ 터미널 네이티브** | IDE를 벗어나지 않고 터미널에서 직접 AI와 협업. 컨텍스트 전환 없이 코드 작성, 디버깅, 리팩터링 |
+| **🤖 에이전트 코딩** | 단순 자동완성이 아닌, 복잡한 태스크를 **계획→실행→검증**하는 에이전틱 워크플로우 |
+| **🔌 MCP 확장성** | GitHub MCP 서버가 기본 내장되어 있고, 커스텀 MCP 서버를 추가하여 기능 확장 가능 |
+| **🐙 GitHub 통합** | 이슈, PR, 리포지토리를 자연어로 탐색 — `#이슈번호`로 이슈 참조, `/pr`로 PR 관리 |
+| **⚡ 병렬 실행** | Fleet 모드로 여러 서브 에이전트를 동시에 실행하여 대규모 작업을 빠르게 처리 |
+| **🛡️ 안전한 실행** | 모든 명령을 실행 전에 미리보기 — 명시적 승인 없이는 아무 작업도 실행되지 않음 |
+
+### 📖 이 프로젝트가 만들어진 과정
+
+이 실습 가이드는 다음과 같은 Copilot CLI 워크플로우로 제작되었습니다:
+
+```
+1️⃣  /plan 모드로 실습 가이드 구조 설계
+    └─ 4개 모듈 구성, 파일 구조, 의존성 정의
+
+2️⃣  Fleet 모드로 4개 모듈을 병렬 생성
+    ├─ 🔄 모듈 1: Agent SDK v2 (서브에이전트 A)
+    ├─ 🔄 모듈 2: MCP 서버    (서브에이전트 B)
+    ├─ 🔄 모듈 3: Foundry IQ  (서브에이전트 C)
+    └─ 🔄 모듈 4: Agent Framework (서브에이전트 D)
+
+3️⃣  아키텍처 문서 자동 생성 + 구문 검증
+
+4️⃣  Git 커밋 & GitHub 리포지토리 생성/푸시
+```
+
+> **결과**: 22개 파일, 3,200+ 줄의 코드와 문서를 하나의 세션에서 완성했습니다.
+
+### 🚀 Copilot CLI 시작하기
+
+```bash
+# 설치 (macOS/Linux)
+curl -fsSL https://gh.io/copilot-install | bash
+
+# 또는 Homebrew
+brew install copilot-cli
+
+# 설치 (Windows)
+winget install GitHub.Copilot
+
+# 실행
+copilot
+
+# 유용한 슬래시 커맨드
+/plan        # 구현 계획 수립
+/fleet       # 병렬 서브에이전트 실행
+/model       # AI 모델 선택 (Claude Sonnet, GPT-5 등)
+/diff        # 변경사항 리뷰
+/pr          # PR 생성/관리
+/research    # 딥 리서치 실행
+```
+
+자세한 내용은 [GitHub Copilot CLI 공식 문서](https://docs.github.com/copilot/concepts/agents/about-copilot-cli)를 참고하세요.
+
+---
 
 ## 🎯 학습 목표
 
@@ -102,6 +199,11 @@ cp .env.example .env
 
 ## 📚 참고 자료
 
+### GitHub Copilot CLI
+- [GitHub Copilot CLI 공식 문서](https://docs.github.com/copilot/concepts/agents/about-copilot-cli)
+- [GitHub Copilot CLI 리포지토리](https://github.com/githubnext/copilot-cli)
+
+### Microsoft AI Agent 기술 스택
 - [Azure AI Foundry 공식 문서](https://learn.microsoft.com/en-us/azure/foundry/)
 - [Azure AI Projects SDK](https://learn.microsoft.com/en-us/python/api/overview/azure/ai-projects-readme)
 - [MCP 프로토콜 명세](https://modelcontextprotocol.io/)
