@@ -1,4 +1,4 @@
-# Microsoft AI Agent 실습 가이드
+# Microsoft Agentic AI 기초 실습: Foundry Agent SDK, MCP, Foundry IQ, Microsoft Agent Framework
 
 > 🤖 **이 프로젝트는 [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli)로 생성되었습니다.**
 > 프로젝트 구조 설계, 4개 모듈의 실습 가이드 문서, Python 코드, 아키텍처 다이어그램까지
