@@ -87,43 +87,45 @@ def main():
     )
     print(f"   MCP 엔드포인트: {mcp_endpoint}")
 
-    # --- 3단계: AI 프로젝트 클라이언트 생성 ---
-    print("\n📌 3단계: AI 프로젝트 클라이언트 생성 중...")
+    # --- 3단계: 에이전트 클라이언트 생성 ---
+    print("\n📌 3단계: 에이전트 클라이언트 생성 중...")
 
     try:
-        from azure.ai.projects import AIProjectClient
-        from azure.ai.projects.models import MCPTool, PromptAgentDefinition
+        from azure.ai.agents import AgentsClient
         from azure.identity import DefaultAzureCredential
     except ImportError:
         print("❌ 필요한 패키지가 설치되지 않았습니다.")
-        print("   pip install azure-ai-projects azure-identity 를 실행해 주세요.")
+        print("   pip install azure-ai-agents azure-identity 를 실행해 주세요.")
         sys.exit(1)
 
     # DefaultAzureCredential로 인증 (az login 필요)
     credential = DefaultAzureCredential()
-    project_client = AIProjectClient(
+    client = AgentsClient(
         endpoint=project_endpoint,
         credential=credential,
     )
-    print("   ✅ AI 프로젝트 클라이언트가 생성되었습니다.")
+    print("   ✅ 에이전트 클라이언트가 생성되었습니다.")
 
-    # --- 4단계: MCPTool 설정 ---
+    # --- 4단계: MCP 도구 설정 ---
     # Foundry IQ 지식 베이스를 MCP 도구로 연결합니다.
+    # azure.ai.agents SDK(1.x)에는 MCP 도구 클래스가 없으므로
+    # REST API 페이로드와 동일한 dict 형식으로 직접 정의합니다.
     # - server_label: 도구의 식별 라벨
     # - server_url: 지식 베이스의 MCP 엔드포인트
     # - require_approval: "never"로 설정하면 에이전트가 자동으로 검색 수행
     # - allowed_tools: 사용 가능한 MCP 도구 목록 제한
     # - project_connection_id: AI Foundry에서 설정한 AI Search 연결 이름
-    print("\n📌 4단계: MCPTool 설정 중...")
+    print("\n📌 4단계: MCP 도구 설정 중...")
 
-    mcp_tool = MCPTool(
-        server_label="knowledge-base",
-        server_url=mcp_endpoint,
-        require_approval="never",
-        allowed_tools=["knowledge_base_retrieve"],
-        project_connection_id=project_connection_name,
-    )
-    print("   ✅ MCPTool이 설정되었습니다.")
+    mcp_tool = {
+        "type": "mcp",
+        "server_label": "knowledge-base",
+        "server_url": mcp_endpoint,
+        "require_approval": "never",
+        "allowed_tools": ["knowledge_base_retrieve"],
+        "project_connection_id": project_connection_name,
+    }
+    print("   ✅ MCP 도구가 설정되었습니다.")
 
     # --- 5단계: 에이전트 생성 ---
     # 에이전트에게 반드시 지식 베이스를 사용하고 출처를 인용하도록 지시합니다.
@@ -137,19 +139,18 @@ def main():
         'If you cannot find the answer, respond with "해당 정보를 찾을 수 없습니다."'
     )
 
-    agent = project_client.agents.create_agent(
+    agent = client.create_agent(
         model=model_deployment_name,
         name="smarttech-rag-agent",
         instructions=instructions,
-        tools=mcp_tool.definitions,
-        tool_resources=mcp_tool.resources,
+        tools=[mcp_tool],
     )
     print(f"   ✅ 에이전트가 생성되었습니다. (ID: {agent.id})")
 
     # --- 6단계: 대화 스레드 생성 및 질문 전송 ---
     print("\n📌 6단계: 대화 스레드 생성 및 질문 전송 중...")
 
-    thread = project_client.agents.threads.create()
+    thread = client.threads.create()
     print(f"   ✅ 스레드가 생성되었습니다. (ID: {thread.id})")
 
     # 스마트테크 회사에 대한 샘플 질문들
@@ -165,7 +166,7 @@ def main():
         print("─" * 60)
 
         # 사용자 메시지 추가
-        message = project_client.agents.messages.create(
+        message = client.messages.create(
             thread_id=thread.id,
             role="user",
             content=question,
@@ -173,7 +174,7 @@ def main():
 
         # 에이전트 실행 및 완료 대기
         # process_run은 에이전트를 실행하고 완료될 때까지 기다립니다
-        run = project_client.agents.runs.create_and_process(
+        run = client.runs.create_and_process(
             thread_id=thread.id,
             agent_id=agent.id,
         )
@@ -185,7 +186,7 @@ def main():
 
         # --- 7단계: 응답 처리 ---
         # 에이전트의 응답에서 텍스트와 인용 정보를 추출합니다
-        messages = project_client.agents.messages.list(thread_id=thread.id)
+        messages = client.messages.list(thread_id=thread.id)
 
         # 가장 최근의 어시스턴트 메시지를 찾습니다
         for msg in messages:
@@ -208,13 +209,13 @@ def main():
     print("🧹 리소스 정리 중...")
 
     try:
-        project_client.agents.threads.delete(thread_id=thread.id)
+        client.threads.delete(thread_id=thread.id)
         print(f"   ✅ 스레드 삭제 완료 (ID: {thread.id})")
     except Exception as e:
         print(f"   ⚠️  스레드 삭제 실패: {e}")
 
     try:
-        project_client.agents.delete_agent(agent_id=agent.id)
+        client.delete_agent(agent_id=agent.id)
         print(f"   ✅ 에이전트 삭제 완료 (ID: {agent.id})")
     except Exception as e:
         print(f"   ⚠️  에이전트 삭제 실패: {e}")
