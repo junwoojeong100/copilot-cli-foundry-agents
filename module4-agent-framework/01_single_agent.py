@@ -1,7 +1,7 @@
 """
 실습 1: 단일 에이전트 기본
 Microsoft Agent Framework를 사용한 가장 기본적인 에이전트 실행 예제입니다.
-Azure OpenAI와 연동하여 단일 에이전트가 사용자 질문에 응답합니다.
+Azure AI Foundry와 연동하여 단일 에이전트가 사용자 질문에 응답합니다.
 """
 
 import asyncio
@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 from agent_framework import Agent
-from agent_framework.azure import AzureOpenAIResponsesClient
+from agent_framework.foundry import FoundryChatClient
 from azure.identity import AzureCliCredential
 
 
@@ -23,26 +23,26 @@ async def main():
 
     print("=== 단일 에이전트 실행 ===\n")
 
-    # ── 1단계: Azure OpenAI 클라이언트 설정 ──
-    # 환경 변수에서 엔드포인트와 배포 이름을 가져옵니다
-    project_endpoint = os.getenv("PROJECT_ENDPOINT") or os.getenv("AZURE_OPENAI_ENDPOINT")
-    deployment_name = os.getenv("MODEL_DEPLOYMENT", "gpt-4o")
+    # ── 1단계: Foundry Chat 클라이언트 설정 ──
+    # 환경 변수에서 프로젝트 엔드포인트와 모델 이름을 가져옵니다
+    project_endpoint = os.getenv("PROJECT_ENDPOINT")
+    model = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4o")
 
     if not project_endpoint:
-        print("오류: PROJECT_ENDPOINT 또는 AZURE_OPENAI_ENDPOINT 환경 변수를 설정해주세요.")
+        print("오류: PROJECT_ENDPOINT 환경 변수를 설정해주세요.")
         sys.exit(1)
 
-    # Azure CLI 인증 정보를 사용하여 클라이언트 생성
-    credential = AzureCliCredential()
-    client = AzureOpenAIResponsesClient(
-        azure_credential=credential,
+    # FoundryChatClient는 Azure AI Foundry 프로젝트에 연결합니다
+    client = FoundryChatClient(
         project_endpoint=project_endpoint,
-        deployment_name=deployment_name,
+        model=model,
+        credential=AzureCliCredential(),
     )
 
     # ── 2단계: 에이전트 생성 ──
     # 에이전트에게 역할과 지시사항을 부여합니다
-    agent = client.as_agent(
+    agent = Agent(
+        client=client,
         name="기술_어시스턴트",
         instructions=(
             "당신은 Microsoft 기술 전문 어시스턴트입니다. "

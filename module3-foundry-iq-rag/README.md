@@ -96,7 +96,7 @@ pip install -r requirements.txt
 프로젝트 루트의 `.env` 파일에 다음을 추가하세요:
 
 ```env
-PROJECT_ENDPOINT=https://<your-project>.services.ai.azure.com/api
+PROJECT_ENDPOINT=https://<your-resource>.services.ai.azure.com/api/projects/<project-name>
 SEARCH_SERVICE_ENDPOINT=https://<your-search-service>.search.windows.net
 KNOWLEDGE_BASE_NAME=smarttech-kb
 PROJECT_CONNECTION_NAME=<your-search-connection-name>

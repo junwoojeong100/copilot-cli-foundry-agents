@@ -121,7 +121,7 @@ copilot
 ```bash
 # 1. 리포지토리 클론
 git clone <이 리포지토리 URL>
-cd copilot-cli-microsoft-agent-framework
+cd copilot-cli-foundry-agents
 
 # 2. 가상 환경 생성
 python -m venv .venv
@@ -139,7 +139,7 @@ cp .env.example .env
 ### Azure AI Foundry 프로젝트 설정
 
 1. [Azure AI Foundry 포털](https://ai.azure.com)에서 프로젝트 생성
-2. **프로젝트 엔드포인트** 확인 (예: `https://<resource>.ai.azure.com/api/projects/<project>`)
+2. **프로젝트 엔드포인트** 확인 (예: `https://<resource>.services.ai.azure.com/api/projects/<project>`)
 3. GPT-4o 모델 배포
 4. 프로젝트 엔드포인트와 모델 배포 이름을 `.env`에 기록
 
@@ -173,7 +173,7 @@ cp .env.example .env
 ┌──────────────────────────────────────────────────────────┐
 │           Microsoft Agent Framework (모듈 4)              │
 │  ┌────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐ │
-│  │ Agent  │  │ Handoff  │  │ GroupChat │  │ 그래프    │ │
+│  │ Agent  │  │ Handoff  │  │ GroupChat │  │ 순차    │ │
 │  │ 정의   │  │ 워크플로우│  │ 워크플로우│  │ 워크플로우│ │
 │  └────────┘  └──────────┘  └───────────┘  └──────────┘ │
 └──────────────────────────────────────────────────────────┘

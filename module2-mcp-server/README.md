@@ -84,6 +84,10 @@ pip install -r requirements.txt
 ```env
 PROJECT_ENDPOINT=https://<your-project>.services.ai.azure.com/api/projects/<project-name>
 MODEL_DEPLOYMENT_NAME=gpt-4o
+
+# 실습 2에서 사용 (Azure OpenAI 직접 연결)
+AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
 ```
 
 ### 3. Azure 인증
@@ -231,11 +235,11 @@ python 02_agent_with_mcp.py
 │  ┌─────────────────┐        ┌─────────────────────────────┐  │
 │  │ 01_mcp_server   │        │   02_agent_with_mcp.py      │  │
 │  │ _basic.py       │        │                             │  │
-│  │                 │        │   Azure AI Foundry Agent     │  │
-│  │  MCP Client     │        │   + MCPTool                 │  │
+│  │                 │        │   Azure OpenAI + MCP Client  │  │
+│  │  MCP Client     │        │   (Function Calling)        │  │
 │  └────────┬────────┘        └──────────────┬──────────────┘  │
 │           │                                │                  │
-│           │  stdio / HTTP                  │  HTTP (SSE)      │
+│           │  stdio                         │  stdio            │
 │           │                                │                  │
 │           ▼                                ▼                  │
 │  ┌─────────────────────────────────────────────────────────┐  │

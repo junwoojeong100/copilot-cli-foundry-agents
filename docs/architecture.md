@@ -46,7 +46,7 @@ graph TB
         AF_AGENT[Agent 정의]
         HANDOFF[Handoff 워크플로우<br/>에이전트 간 위임]
         GROUPCHAT[GroupChat 워크플로우<br/>협업 토론]
-        GRAPH[그래프 워크플로우<br/>조건부 라우팅]
+        GRAPH[순차 워크플로우<br/>조건부 라우팅]
         
         AF_AGENT --> HANDOFF
         AF_AGENT --> GROUPCHAT
@@ -149,7 +149,7 @@ graph LR
         DS <--> P
     end
 
-    subgraph Graph["그래프 워크플로우"]
+    subgraph Graph["순차 워크플로우"]
         AN[분석] -->|기술| TW[기술 작가]
         AN -->|일반| GW[일반 작가]
         TW --> ED[편집자]
