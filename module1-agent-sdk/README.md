@@ -177,7 +177,7 @@ python 02_agent_with_tools.py
 
 ### 코드 설명
 
-1. **도구 지정**: 에이전트 생성 시 `tools=[{"type": "code_interpreter"}]`를 추가합니다.
+1. **도구 지정**: `CodeInterpreterTool()` 인스턴스를 만들고, 에이전트 생성 시 `tools=code_interpreter.definitions`로 전달합니다.
 
 2. **계산 요청**: 사용자 메시지로 수학 문제를 전달합니다.
 
@@ -228,7 +228,7 @@ python 03_agent_with_file_search.py
 
 2. **파일 업로드**: 샘플 텍스트 파일을 생성하고 `client.files.upload()`으로 업로드한 뒤, `client.vector_store_file_batches.create_and_poll()`으로 벡터 스토어에 등록합니다.
 
-3. **에이전트 생성**: `tools=[{"type": "file_search"}]`와 `tool_resources`로 벡터 스토어를 연결합니다.
+3. **에이전트 생성**: `FileSearchTool(vector_store_ids=[...])` 인스턴스를 만들고, `tools=file_search.definitions`와 `tool_resources=file_search.resources`로 벡터 스토어를 연결합니다.
 
 4. **질문 및 응답**: 업로드된 문서 내용에 대한 질문을 하면, 에이전트가 File Search를 통해 관련 내용을 찾아 답변합니다.
 

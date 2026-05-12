@@ -153,7 +153,7 @@ python 01_mcp_server_basic.py
 📡 MCP 서버에 연결 중...
 ✅ 서버 연결 성공!
 
-📋 사용 가능한 도구 목록:
+📋 사용 가능한 도구 목록 (2개):
   - get_weather: 도시의 현재 날씨를 조회합니다.
   - get_forecast: 도시의 날씨 예보를 조회합니다.
 

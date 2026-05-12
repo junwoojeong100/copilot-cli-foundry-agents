@@ -104,7 +104,7 @@ copilot
 | 모듈 | 주제 | 핵심 기술 |
 |------|------|-----------|
 | **모듈 0** | [Azure 리소스 사전 준비](./module0-setup/) | `az CLI` 자동화 스크립트 (Foundry, 모델 배포, AI Search, 연결) |
-| **모듈 1** | [Agent SDK v2 기본](./module1-agent-sdk/) | `azure-ai-projects`, Agent/Thread/Run |
+| **모듈 1** | [Agent SDK v2 기본](./module1-agent-sdk/) | `azure-ai-agents`, Agent/Thread/Run |
 | **모듈 2** | [MCP 서버 연결](./module2-mcp-server/) | MCP 프로토콜, stdio 클라이언트 + Azure OpenAI Function Calling |
 | **모듈 3** | [Foundry IQ RAG](./module3-foundry-iq-rag/) | 지식 베이스, Agentic RAG |
 | **모듈 4** | [Agent Framework 워크플로우](./module4-agent-framework/) | Handoff, GroupChat, 그래프 워크플로우 |
