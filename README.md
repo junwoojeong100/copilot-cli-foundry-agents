@@ -103,8 +103,9 @@ copilot
 
 | 모듈 | 주제 | 핵심 기술 |
 |------|------|-----------|
+| **모듈 0** | [Azure 리소스 사전 준비](./module0-setup/) | `az CLI` 자동화 스크립트 (Foundry, 모델 배포, AI Search, 연결) |
 | **모듈 1** | [Agent SDK v2 기본](./module1-agent-sdk/) | `azure-ai-projects`, Agent/Thread/Run |
-| **모듈 2** | [MCP 서버 연결](./module2-mcp-server/) | MCP 프로토콜, `MCPTool` |
+| **모듈 2** | [MCP 서버 연결](./module2-mcp-server/) | MCP 프로토콜, stdio 클라이언트 + Azure OpenAI Function Calling |
 | **모듈 3** | [Foundry IQ RAG](./module3-foundry-iq-rag/) | 지식 베이스, Agentic RAG |
 | **모듈 4** | [Agent Framework 워크플로우](./module4-agent-framework/) | Handoff, GroupChat, 그래프 워크플로우 |
 
@@ -113,7 +114,7 @@ copilot
 ### 필수 요구 사항
 - **Python 3.10+**
 - **Azure 구독** (Azure AI Foundry 프로젝트 생성 완료)
-- **Azure CLI** (`az login` 인증 완료)
+- **Azure CLI 2.81.0+** — `az login` 완료, 모듈 0 자동화 스크립트가 이 버전 이상의 Foundry 명령을 사용합니다 (`az upgrade --yes`로 최신화 권장)
 - **Azure AI Foundry 프로젝트** (모델 배포 완료, 예: `gpt-4o`)
 
 ### 환경 설정
@@ -138,10 +139,21 @@ cp .env.example .env
 
 ### Azure AI Foundry 프로젝트 설정
 
+**옵션 A — 자동화 (권장):** [모듈 0 setup.sh](./module0-setup/) 실행
+
+```bash
+cd module0-setup
+chmod +x setup.sh
+WRITE_ENV=1 ./setup.sh   # 리소스 생성 + 루트 .env 자동 기록
+```
+
+**옵션 B — 수동:**
+
 1. [Azure AI Foundry 포털](https://ai.azure.com)에서 프로젝트 생성
 2. **프로젝트 엔드포인트** 확인 (예: `https://<resource>.services.ai.azure.com/api/projects/<project>`)
 3. GPT-4o 모델 배포
-4. 프로젝트 엔드포인트와 모델 배포 이름을 `.env`에 기록
+4. AI Search 서비스 생성 및 프로젝트에 연결 (모듈 3용)
+5. 프로젝트 엔드포인트와 모델 배포 이름을 `.env`에 기록
 
 ## 🏗️ 전체 아키텍처
 
@@ -185,6 +197,7 @@ cp .env.example .env
 ├── README.md                          # 이 파일
 ├── .env.example                       # 환경변수 템플릿
 ├── requirements.txt                   # 공통 의존성
+├── module0-setup/                    # 모듈 0: Azure 리소스 사전 준비 (az CLI)
 ├── module1-agent-sdk/                 # 모듈 1: Agent SDK v2
 ├── module2-mcp-server/               # 모듈 2: MCP 서버 연결
 ├── module3-foundry-iq-rag/           # 모듈 3: Foundry IQ RAG
@@ -194,8 +207,9 @@ cp .env.example .env
 
 ## 🚀 모듈별 실습 순서
 
-**모듈 1 → 모듈 2 → 모듈 3 → 모듈 4** 순서를 권장합니다.
-각 모듈은 독립적으로 실행할 수 있지만, 이전 모듈의 개념을 이해하면 더 효과적입니다.
+**모듈 0 (사전 준비) → 모듈 1 → 모듈 2 → 모듈 3 → 모듈 4** 순서를 권장합니다.
+모듈 0은 한 번만 실행하면 됩니다 (실습이 끝나면 `cleanup.sh`로 정리).
+각 학습 모듈은 독립적으로 실행할 수 있지만, 이전 모듈의 개념을 이해하면 더 효과적입니다.
 
 ## 📚 참고 자료
 

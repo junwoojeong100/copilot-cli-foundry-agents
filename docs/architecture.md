@@ -21,16 +21,16 @@ graph TB
         AGENT_SERVICE --> MODEL
     end
 
-    subgraph SDK["📦 Azure AI Projects SDK v2 (모듈 1)"]
-        CLIENT[AIProjectClient]
-        AGENT_API[agents.create_agent<br/>threads / messages / runs]
+    subgraph SDK["📦 Azure AI Agents SDK v2 (모듈 1)"]
+        CLIENT[AgentsClient]
+        AGENT_API[create_agent<br/>threads / messages / runs]
         CLIENT --> AGENT_API
     end
 
     subgraph MCP_Layer["🔌 MCP 프로토콜 (모듈 2)"]
-        MCP_TOOL[MCPTool 클래스]
-        MCP_SERVER[MCP 서버<br/>외부 도구/API]
-        MCP_TOOL <-->|JSON-RPC| MCP_SERVER
+        MCP_CLIENT[stdio 클라이언트<br/>+ Azure OpenAI Function Calling]
+        MCP_SERVER[MCP 서버<br/>weather_server.py]
+        MCP_CLIENT <-->|JSON-RPC| MCP_SERVER
     end
 
     subgraph IQ["🧠 Foundry IQ (모듈 3)"]
@@ -56,7 +56,7 @@ graph TB
     APP --> CLIENT
     APP --> AF_AGENT
     AGENT_API --> AGENT_SERVICE
-    AGENT_SERVICE --> MCP_TOOL
+    AGENT_SERVICE --> MCP_CLIENT
     AGENT_SERVICE --> MCP_KB
     MAF -->|Azure OpenAI| MODEL
 
@@ -75,11 +75,11 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U as 사용자
-    participant C as AIProjectClient
+    participant C as AgentsClient
     participant A as Agent Service
     participant M as 모델 (GPT-4o)
 
-    U->>C: agents.create_agent()
+    U->>C: create_agent()
     C->>A: 에이전트 생성
     U->>C: threads.create()
     C->>A: 스레드 생성
@@ -165,9 +165,10 @@ graph LR
 
 | 계층 | 기술 | 패키지 | 역할 |
 |------|------|--------|------|
-| **SDK** | Azure AI Projects SDK v2 | `azure-ai-projects>=2.0.0` | Foundry 에이전트 생성/관리 |
+| **SDK (모듈 1)** | Azure AI Agents SDK v2 | `azure-ai-agents>=1.0.0` | `AgentsClient`로 에이전트 생성/관리 |
+| **SDK (모듈 3)** | Azure AI Projects | `azure-ai-projects>=2.0.0` | `MCPTool` (Foundry IQ 연결) |
 | **인증** | Azure Identity | `azure-identity` | DefaultAzureCredential |
-| **도구 연결** | MCP (Model Context Protocol) | `mcp[cli]` | 외부 도구/API 연결 표준 |
+| **도구 연결** | MCP (Model Context Protocol) | `mcp[cli]` | stdio 클라이언트/서버 (모듈 2) |
 | **지식 검색** | Foundry IQ + AI Search | 포털 설정 | Agentic RAG |
 | **워크플로우** | Microsoft Agent Framework | `agent-framework` | 멀티에이전트 오케스트레이션 |
 | **모델** | Azure OpenAI | `openai` | GPT-4o 등 LLM |

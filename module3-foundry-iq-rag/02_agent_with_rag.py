@@ -92,10 +92,14 @@ def main():
 
     try:
         from azure.ai.agents import AgentsClient
+        # MCPTool은 azure-ai-projects에서만 제공됩니다 (azure-ai-agents에는 없음).
+        # AgentsClient.create_agent(tools=[...])는 Tool 모델을 그대로 직렬화하므로
+        # azure-ai-projects의 MCPTool 인스턴스를 직접 전달할 수 있습니다.
+        from azure.ai.projects.models import MCPTool
         from azure.identity import DefaultAzureCredential
     except ImportError:
         print("❌ 필요한 패키지가 설치되지 않았습니다.")
-        print("   pip install azure-ai-agents azure-identity 를 실행해 주세요.")
+        print("   pip install azure-ai-agents azure-ai-projects azure-identity 를 실행해 주세요.")
         sys.exit(1)
 
     # DefaultAzureCredential로 인증 (az login 필요)
@@ -108,8 +112,7 @@ def main():
 
     # --- 4단계: MCP 도구 설정 ---
     # Foundry IQ 지식 베이스를 MCP 도구로 연결합니다.
-    # azure.ai.agents SDK(1.x)에는 MCP 도구 클래스가 없으므로
-    # REST API 페이로드와 동일한 dict 형식으로 직접 정의합니다.
+    # azure.ai.projects.models.MCPTool을 사용하여 타입 안전하게 정의합니다.
     # - server_label: 도구의 식별 라벨
     # - server_url: 지식 베이스의 MCP 엔드포인트
     # - require_approval: "never"로 설정하면 에이전트가 자동으로 검색 수행
@@ -117,14 +120,13 @@ def main():
     # - project_connection_id: AI Foundry에서 설정한 AI Search 연결 이름
     print("\n📌 4단계: MCP 도구 설정 중...")
 
-    mcp_tool = {
-        "type": "mcp",
-        "server_label": "knowledge-base",
-        "server_url": mcp_endpoint,
-        "require_approval": "never",
-        "allowed_tools": ["knowledge_base_retrieve"],
-        "project_connection_id": project_connection_name,
-    }
+    mcp_tool = MCPTool(
+        server_label="knowledge-base",
+        server_url=mcp_endpoint,
+        require_approval="never",
+        allowed_tools=["knowledge_base_retrieve"],
+        project_connection_id=project_connection_name,
+    )
     print("   ✅ MCP 도구가 설정되었습니다.")
 
     # --- 5단계: 에이전트 생성 ---

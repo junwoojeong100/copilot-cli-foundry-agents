@@ -83,12 +83,15 @@ async def main():
 
     # ── 3단계: Handoff 워크플로우 구성 ──
     # HandoffBuilder를 사용하여 에이전트 간 위임 규칙을 정의합니다
+    # add_handoff()로 접수 담당이 위임 가능한 전문가 에이전트를 명시해야
+    # LLM에 handoff_to_* 도구가 노출됩니다.
     workflow = (
         HandoffBuilder(
             name="고객_지원",
             participants=[triage_agent, tech_support_agent, billing_agent],
         )
         .with_start_agent(triage_agent)  # 시작 에이전트 지정
+        .add_handoff(triage_agent, [tech_support_agent, billing_agent])
         .with_autonomous_mode()  # 사용자 입력 없이 자동으로 진행
         .build()
     )

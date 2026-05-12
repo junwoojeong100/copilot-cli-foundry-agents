@@ -168,59 +168,108 @@ python 01_mcp_server_basic.py
 
 ---
 
-## 🧪 실습 2: Foundry Agent에 MCP 서버 연결
+## 🧪 실습 2: Azure OpenAI + MCP 서버를 결합한 AI 에이전트
 
 ### 파일: `02_agent_with_mcp.py`
 
-Azure AI Foundry Agent에 MCP 서버를 연결하여 AI가 날씨 도구를 사용하도록 합니다.
+이 실습에서는 **Azure OpenAI Function Calling**과 **로컬 MCP 서버(stdio)**를 결합하여 AI 에이전트를 구현합니다. 스크립트가 직접 MCP 서버 프로세스를 자식으로 띄우기 때문에 **별도 터미널에서 서버를 미리 실행할 필요가 없습니다**.
+
+> 💡 Azure AI Foundry Agent Service의 **hosted MCP** 기능(`MCPTool`)은 모듈 3에서 다룹니다. 이 모듈은 “MCP 프로토콜을 직접 소비하는 클라이언트 + LLM 함수 호출 루프” 패턴을 학습합니다.
+
+#### 워크플로우
+
+```
+┌──────────────────────────────────────────────┐
+│  02_agent_with_mcp.py                         │
+│                                               │
+│   ┌───────────────────────────────────────┐  │
+│   │ 1) StdioServerParameters로 서버 spawn  │  │
+│   │ 2) MCP 도구 목록 자동 발견              │  │
+│   │ 3) MCP → OpenAI tool schema로 변환     │  │
+│   │ 4) Azure OpenAI chat.completions 호출  │  │
+│   │ 5) tool_calls 발생 시 MCP에 위임 → 응답 │  │
+│   │    이 흐름을 도구 호출이 끝날 때까지 반복 │  │
+│   └───────────────────────────────────────┘  │
+└──────────────────────────────────────────────┘
+```
 
 #### 핵심 코드 설명
 
 ```python
-from azure.ai.projects.models import MCPTool
-
-# MCP 도구 생성 - 로컬 MCP 서버를 Agent에 연결
-mcp_tool = MCPTool(
-    server_label="weather",
-    server_url="http://localhost:8080/mcp"
+# 1) 자식 프로세스로 MCP 서버 실행 준비 (별도 터미널 불필요)
+server_params = StdioServerParameters(
+    command=sys.executable,
+    args=["mcp_server/weather_server.py"],
 )
 
-# Agent 생성 시 MCP 도구 포함
-agent = project.agents.create_agent(
-    model=model_name,
-    name="날씨-에이전트",
-    instructions="MCP 서버의 날씨 도구를 활용하여 날씨 질문에 답하세요.",
-    tools=[mcp_tool],
-)
+# 2) 세션 열기 → 도구 자동 발견
+async with stdio_client(server_params) as (read, write):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
+        tools_result = await session.list_tools()
+
+        # 3) MCP 도구 정의를 OpenAI Function Calling 스키마로 변환
+        openai_tools = mcp_tools_to_openai(tools_result.tools)
+
+        # 4) Azure OpenAI (Entra ID 토큰) 호출
+        response = openai_client.chat.completions.create(
+            model=MODEL_DEPLOYMENT_NAME,
+            messages=messages,
+            tools=openai_tools,
+        )
+
+        # 5) tool_calls가 있으면 MCP에 위임하고 결과를 다시 모델에 전달
+        while response.choices[0].message.tool_calls:
+            for tool_call in response.choices[0].message.tool_calls:
+                mcp_result = await session.call_tool(
+                    tool_call.function.name,
+                    arguments=json.loads(tool_call.function.arguments),
+                )
+                # 결과를 messages에 append 후 재호출 (생략)
 ```
 
 #### 실행 방법
 
 ```bash
-# 1. 먼저 MCP 서버를 실행합니다 (별도 터미널)
-python mcp_server/weather_server.py
-
-# 2. Agent 스크립트를 실행합니다
+# 별도의 서버 실행 단계가 필요 없습니다.
 cd module2-mcp-server
 python 02_agent_with_mcp.py
+```
+
+> `weather_server.py`를 직접 실행하려면 모듈 2 첫 번째 실습(`01_mcp_server_basic.py`)을 사용하세요. 두 스크립트 모두 스스로 stdio 서버 프로세스를 띄우므로, **수동으로 weather_server.py를 띄울 필요는 없습니다**.
+
+#### 필수 환경 변수
+
+이 실습은 Azure OpenAI 엔드포인트를 직접 호출하므로 다음이 필요합니다(모듈 0 `setup.sh`가 자동 기록).
+
+```env
+AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o          # 또는 MODEL_DEPLOYMENT_NAME으로 대체 가능
 ```
 
 #### 예상 출력
 
 ```
-🤖 MCP 도구를 사용하는 Foundry Agent
+🤖 MCP 도구를 사용하는 AI 에이전트
 ============================================================
 
-🔧 MCP 도구 설정 중...
-🤖 Agent 생성 완료: agent_xxxxx
+📡 MCP 서버에 연결 중...
+✅ MCP 서버 연결 성공!
+📋 MCP에서 발견된 도구: get_weather, get_forecast
+✅ Azure OpenAI 클라이언트 생성 완료
 
-💬 메시지 전송: "서울의 현재 날씨를 알려주세요"
-⏳ Agent 실행 중...
+💬 사용자 질문: "서울과 부산의 날씨를 비교해주세요"
+⏳ AI 에이전트 실행 중...
 
-📨 Agent 응답:
-서울의 현재 날씨는 맑음이며, 기온은 22°C, 습도는 45%입니다.
+  🔧 도구 호출: get_weather({'city': '서울'})
+  📍 결과: 서울의 현재 날씨: 맑음, 22°C, 습도 45%
+  🔧 도구 호출: get_weather({'city': '부산'})
+  📍 결과: 부산의 현재 날씨: 구름 많음, 25°C, 습도 60%
 
-🧹 리소스 정리 완료
+📨 에이전트 응답:
+서울은 22°C, 맑음이고 부산은 25°C, 구름 많음입니다. ...
+
+✅ MCP 에이전트 실습 완료!
 ```
 
 ---
@@ -262,9 +311,10 @@ python 02_agent_with_mcp.py
 | **MCP** | AI 모델과 외부 도구를 연결하는 표준 프로토콜 |
 | **FastMCP** | Python으로 MCP 서버를 쉽게 만들 수 있는 라이브러리 |
 | **@mcp.tool()** | 함수를 MCP 도구로 등록하는 데코레이터 |
-| **MCPTool** | Azure AI Foundry Agent에 MCP 서버를 연결하는 클래스 |
 | **stdio 전송** | 표준 입출력을 통한 MCP 통신 방식 (로컬 개발용) |
 | **HTTP(SSE) 전송** | HTTP를 통한 MCP 통신 방식 (원격 서버용) |
+| **`StdioServerParameters` / `stdio_client`** | MCP 서버를 자식 프로세스로 실행하고 stdio로 연결하는 Python MCP SDK API |
+| **MCP → OpenAI 스키마 변환** | `tool.inputSchema`를 OpenAI Function Calling 형식으로 매핑하여 LLM에 노출 |
 
 ### MCP의 장점
 

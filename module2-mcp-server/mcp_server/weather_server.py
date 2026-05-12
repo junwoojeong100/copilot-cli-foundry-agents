@@ -5,6 +5,8 @@ FastMCP를 사용하여 날씨 정보를 제공하는 간단한 MCP 서버입니
 AI 에이전트가 이 서버에 연결하면 날씨 관련 도구를 자동으로 발견하고 사용할 수 있습니다.
 """
 
+import sys
+
 from mcp.server.fastmcp import FastMCP
 
 # ============================================================
@@ -80,7 +82,11 @@ def get_forecast(city: str, days: int = 3) -> str:
 # 서버 실행
 # stdio 전송 방식으로 서버를 시작합니다.
 # stdio는 로컬 개발에 적합하며, 표준 입출력을 통해 통신합니다.
+#
+# ⚠️ stdio 모드에서는 stdout이 JSON-RPC 채널로 사용되므로
+# 사람이 읽을 로그/메시지는 반드시 stderr로 출력해야 합니다.
+# (stdout에 한 줄이라도 비-JSON이 섞이면 클라이언트가 파싱 실패합니다)
 # ============================================================
 if __name__ == "__main__":
-    print("🌤️ MCP 날씨 서버를 시작합니다...")
+    print("🌤️ MCP 날씨 서버를 시작합니다...", file=sys.stderr)
     mcp.run(transport="stdio")
