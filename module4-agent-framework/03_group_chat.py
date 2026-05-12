@@ -13,9 +13,22 @@ from dotenv import load_dotenv
 # 상위 디렉토리의 .env 파일 로드
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-from agent_framework import Agent, GroupChatOrchestrator
-from agent_framework.azure import AzureOpenAIResponsesClient
+from agent_framework import Agent
+from agent_framework.orchestrations import GroupChatBuilder, GroupChatState
+from agent_framework.foundry import FoundryChatClient
 from azure.identity import AzureCliCredential
+
+
+def select_next_speaker(state: GroupChatState) -> str:
+    """라운드 로빈 방식으로 다음 발화자를 선택합니다.
+
+    state.current_round: 현재 라운드 인덱스 (0부터 시작)
+    state.participants: 참여자 이름 → 설명 딕셔너리
+    state.conversation: 전체 대화 이력
+    """
+    speakers = ["기획자", "개발자", "디자이너"]
+    idx = state.current_round % len(speakers)
+    return speakers[idx]
 
 
 async def main():
@@ -23,26 +36,26 @@ async def main():
 
     print("=== GroupChat 워크플로우 실행 ===\n")
 
-    # ── 1단계: Azure OpenAI 클라이언트 설정 ──
-    project_endpoint = os.getenv("PROJECT_ENDPOINT") or os.getenv("AZURE_OPENAI_ENDPOINT")
-    deployment_name = os.getenv("MODEL_DEPLOYMENT", "gpt-4o")
+    # ── 1단계: Foundry Chat 클라이언트 설정 ──
+    project_endpoint = os.getenv("PROJECT_ENDPOINT")
+    model = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4o")
 
     if not project_endpoint:
-        print("오류: PROJECT_ENDPOINT 또는 AZURE_OPENAI_ENDPOINT 환경 변수를 설정해주세요.")
+        print("오류: PROJECT_ENDPOINT 환경 변수를 설정해주세요.")
         sys.exit(1)
 
-    credential = AzureCliCredential()
-    client = AzureOpenAIResponsesClient(
-        azure_credential=credential,
+    client = FoundryChatClient(
         project_endpoint=project_endpoint,
-        deployment_name=deployment_name,
+        model=model,
+        credential=AzureCliCredential(),
     )
 
     # ── 2단계: 역할별 에이전트 생성 ──
     # 각 에이전트는 프로젝트에서 고유한 역할과 관점을 가집니다
 
     # 기획자 에이전트 - 비즈니스 관점에서 기능을 정의합니다
-    planner_agent = client.as_agent(
+    planner_agent = Agent(
+        client=client,
         name="기획자",
         instructions=(
             "당신은 시니어 프로덕트 매니저입니다. "
@@ -53,7 +66,8 @@ async def main():
     )
 
     # 개발자 에이전트 - 기술적 실현 가능성을 평가합니다
-    developer_agent = client.as_agent(
+    developer_agent = Agent(
+        client=client,
         name="개발자",
         instructions=(
             "당신은 시니어 풀스택 개발자입니다. "
@@ -65,7 +79,8 @@ async def main():
     )
 
     # 디자이너 에이전트 - 사용자 경험(UX)을 설계합니다
-    designer_agent = client.as_agent(
+    designer_agent = Agent(
+        client=client,
         name="디자이너",
         instructions=(
             "당신은 시니어 UX/UI 디자이너입니다. "
@@ -76,12 +91,13 @@ async def main():
         ),
     )
 
-    # ── 3단계: GroupChat 오케스트레이터 구성 ──
-    # 여러 에이전트를 그룹에 등록하고 최대 턴 수를 설정합니다
-    orchestrator = GroupChatOrchestrator(
-        agents=[planner_agent, developer_agent, designer_agent],
-        max_turns=6,  # 최대 6턴까지 토론 진행
-    )
+    # ── 3단계: GroupChat 워크플로우 구성 ──
+    # GroupChatBuilder를 사용하여 다중 에이전트 토론을 설정합니다
+    workflow = GroupChatBuilder(
+        participants=[planner_agent, developer_agent, designer_agent],
+        selection_func=select_next_speaker,
+        max_rounds=6,
+    ).build()
 
     # ── 4단계: GroupChat 실행 ──
     # 토론 주제를 전달하여 협업 토론을 시작합니다
@@ -90,9 +106,9 @@ async def main():
     print("=" * 50)
 
     try:
-        result = await orchestrator.run(topic)
+        result = await workflow.run(topic)
 
-        # ── 5단계: 턴별 대화 내용 출력 ──
+        # ── 5단계: 토론 결과 출력 ──
         print("\n[GroupChat 토론 결과]")
         print(result)
 

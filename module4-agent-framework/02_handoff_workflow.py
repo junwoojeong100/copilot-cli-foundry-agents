@@ -14,8 +14,8 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 from agent_framework import Agent
-from agent_framework.azure import AzureOpenAIResponsesClient
 from agent_framework.orchestrations import HandoffBuilder
+from agent_framework.foundry import FoundryChatClient
 from azure.identity import AzureCliCredential
 
 
@@ -24,26 +24,26 @@ async def main():
 
     print("=== Handoff 워크플로우 실행 ===\n")
 
-    # ── 1단계: Azure OpenAI 클라이언트 설정 ──
-    project_endpoint = os.getenv("PROJECT_ENDPOINT") or os.getenv("AZURE_OPENAI_ENDPOINT")
-    deployment_name = os.getenv("MODEL_DEPLOYMENT", "gpt-4o")
+    # ── 1단계: Foundry Chat 클라이언트 설정 ──
+    project_endpoint = os.getenv("PROJECT_ENDPOINT")
+    model = os.getenv("MODEL_DEPLOYMENT_NAME", "gpt-4o")
 
     if not project_endpoint:
-        print("오류: PROJECT_ENDPOINT 또는 AZURE_OPENAI_ENDPOINT 환경 변수를 설정해주세요.")
+        print("오류: PROJECT_ENDPOINT 환경 변수를 설정해주세요.")
         sys.exit(1)
 
-    credential = AzureCliCredential()
-    client = AzureOpenAIResponsesClient(
-        azure_credential=credential,
+    client = FoundryChatClient(
         project_endpoint=project_endpoint,
-        deployment_name=deployment_name,
+        model=model,
+        credential=AzureCliCredential(),
     )
 
     # ── 2단계: 전문가 에이전트 생성 ──
     # 각 에이전트는 특정 도메인에 특화된 지시사항을 가집니다
 
     # 기술 지원 전문가 에이전트
-    tech_support_agent = client.as_agent(
+    tech_support_agent = Agent(
+        client=client,
         name="기술_지원",
         instructions=(
             "당신은 기술 지원 전문가입니다. "
@@ -51,10 +51,12 @@ async def main():
             "단계별로 명확하게 안내하며, 필요시 추가 정보를 요청합니다. "
             "한국어로 답변합니다."
         ),
+        require_per_service_call_history_persistence=True,
     )
 
     # 결제 지원 전문가 에이전트
-    billing_agent = client.as_agent(
+    billing_agent = Agent(
+        client=client,
         name="결제_지원",
         instructions=(
             "당신은 결제 지원 전문가입니다. "
@@ -62,28 +64,32 @@ async def main():
             "고객의 결제 문제를 신속하고 정확하게 해결합니다. "
             "한국어로 답변합니다."
         ),
+        require_per_service_call_history_persistence=True,
     )
 
-    # 접수 담당 에이전트 (Triage) - 사용자 요청을 분류하고 라우팅합니다
-    triage_agent = client.as_agent(
+    # 접수 담당 에이전트 (Coordinator) - 사용자 요청을 분류하고 라우팅합니다
+    triage_agent = Agent(
+        client=client,
         name="접수_담당",
         instructions=(
             "당신은 고객 지원 접수 담당자입니다. "
             "사용자의 요청을 분석하여 적절한 전문가에게 연결합니다.\n"
-            "- 기술적인 문제 (설치, 오류, 설정 등) → 기술_지원 에이전트에게 handoff\n"
-            "- 결제 관련 문제 (결제 오류, 환불, 구독 등) → 결제_지원 에이전트에게 handoff\n"
+            "- 기술적인 문제 (설치, 오류, 설정 등) → handoff_to_기술_지원 도구를 호출\n"
+            "- 결제 관련 문제 (결제 오류, 환불, 구독 등) → handoff_to_결제_지원 도구를 호출\n"
             "먼저 사용자에게 간단히 어떤 전문가에게 연결하는지 안내한 후 handoff합니다."
         ),
+        require_per_service_call_history_persistence=True,
     )
 
     # ── 3단계: Handoff 워크플로우 구성 ──
     # HandoffBuilder를 사용하여 에이전트 간 위임 규칙을 정의합니다
-    handoff = (
-        HandoffBuilder()
-        .add_agent(triage_agent)
-        .add_agent(tech_support_agent)
-        .add_agent(billing_agent)
-        .set_entry_agent(triage_agent)  # 시작 에이전트 지정
+    workflow = (
+        HandoffBuilder(
+            name="고객_지원",
+            participants=[triage_agent, tech_support_agent, billing_agent],
+        )
+        .with_start_agent(triage_agent)  # 시작 에이전트 지정
+        .with_autonomous_mode()  # 사용자 입력 없이 자동으로 진행
         .build()
     )
 
@@ -94,7 +100,7 @@ async def main():
     print("-" * 50)
 
     try:
-        result = await handoff.run(user_query)
+        result = await workflow.run(user_query)
 
         # ── 5단계: 결과 출력 ──
         # Handoff 흐름과 최종 응답을 표시합니다

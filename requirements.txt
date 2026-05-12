@@ -8,7 +8,10 @@ openai
 # MCP (Model Context Protocol)
 mcp[cli]
 
-# Microsoft Agent Framework
+# Azure AI Search (모듈 3: Foundry IQ 지식 베이스 확인용)
+azure-search-documents
+
+# Microsoft Agent Framework (모듈 4)
 agent-framework
 
 # 유틸리티
