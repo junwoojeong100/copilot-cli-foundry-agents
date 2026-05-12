@@ -6,7 +6,8 @@
 import os
 from pathlib import Path
 
-from azure.ai.projects import AIProjectClient
+from azure.ai.agents import AgentsClient
+from azure.ai.agents.models import FileSearchTool, FilePurpose
 from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
 
@@ -47,13 +48,14 @@ def main():
     endpoint = os.environ["PROJECT_ENDPOINT"]
     model = os.environ["MODEL_DEPLOYMENT_NAME"]
 
-    project = AIProjectClient(
+    client = AgentsClient(
         endpoint=endpoint,
         credential=DefaultAzureCredential(),
     )
 
     agent = None
     vector_store = None
+    uploaded_file = None
     sample_file_path = Path(__file__).parent / "_sample_document.txt"
 
     try:
@@ -62,21 +64,21 @@ def main():
         print("샘플 문서 파일 생성 완료")
 
         # 2단계: 벡터 스토어 생성 - File Search에서 사용할 벡터 저장소를 만듭니다
-        vector_store = project.agents.vector_stores.create(
+        vector_store = client.vector_stores.create(
             name="module1-sample-store",
         )
         print(f"벡터 스토어 생성 완료: {vector_store.id}")
 
         # 3단계: 파일 업로드 - 문서를 에이전트 서비스에 업로드합니다
         with open(sample_file_path, "rb") as f:
-            uploaded_file = project.agents.files.upload(
+            uploaded_file = client.files.upload(
                 file=f,
-                purpose="agents",
+                purpose=FilePurpose.AGENTS,
             )
         print(f"파일 업로드 완료: {uploaded_file.id}")
 
         # 4단계: 벡터 스토어에 파일 등록 - 업로드된 파일을 벡터 스토어에 추가하고 인덱싱합니다
-        file_batch = project.agents.vector_stores.file_batches.create_and_poll(
+        file_batch = client.vector_store_file_batches.create_and_poll(
             vector_store_id=vector_store.id,
             file_ids=[uploaded_file.id],
         )
@@ -84,7 +86,8 @@ def main():
 
         # 5단계: File Search 도구가 활성화된 에이전트 생성
         # tool_resources로 벡터 스토어를 에이전트에 연결합니다
-        agent = project.agents.create_agent(
+        file_search = FileSearchTool(vector_store_ids=[vector_store.id])
+        agent = client.create_agent(
             model=model,
             name="file-search-agent",
             instructions=(
@@ -92,21 +95,17 @@ def main():
                 "File Search 도구를 사용하여 문서에서 관련 정보를 찾아 답변하세요. "
                 "한국어로 답변하고, 문서에 없는 내용은 '문서에서 해당 정보를 찾을 수 없습니다'라고 답하세요."
             ),
-            tools=[{"type": "file_search"}],
-            tool_resources={
-                "file_search": {
-                    "vector_store_ids": [vector_store.id],
-                }
-            },
+            tools=file_search.definitions,
+            tool_resources=file_search.resources,
         )
         print(f"에이전트 생성 완료 (File Search 활성화): {agent.id}")
 
         # 6단계: 대화 스레드 생성 및 질문
-        thread = project.agents.threads.create()
+        thread = client.threads.create()
         print(f"스레드 생성 완료: {thread.id}")
 
         # 문서 내용에 대한 질문 추가
-        project.agents.messages.create(
+        client.messages.create(
             thread_id=thread.id,
             role="user",
             content="Azure AI Foundry의 주요 기능 5가지를 정리해주세요. 그리고 Agent SDK v2의 특징도 알려주세요.",
@@ -114,7 +113,7 @@ def main():
         print("메시지 추가 완료")
 
         # 7단계: Run 실행 - 에이전트가 File Search를 통해 문서를 검색하고 답변합니다
-        run = project.agents.runs.create_and_process(
+        run = client.runs.create_and_process(
             thread_id=thread.id,
             agent_id=agent.id,
         )
@@ -125,10 +124,10 @@ def main():
             return
 
         # 8단계: 응답 출력
-        messages = project.agents.messages.list(thread_id=thread.id)
+        messages = list(client.messages.list(thread_id=thread.id))
         print("\n=== 에이전트 응답 ===")
 
-        for msg in reversed(messages.data):
+        for msg in reversed(messages):
             if msg.role == "assistant":
                 for content_block in msg.content:
                     if hasattr(content_block, "text"):
@@ -140,17 +139,21 @@ def main():
                             for annotation in content_block.text.annotations:
                                 if hasattr(annotation, "file_citation"):
                                     print(
-                                        f"  📄 파일 인용: {annotation.file_citation.file_id}"
+                                        f"  파일 인용: {annotation.file_citation.file_id}"
                                     )
 
     finally:
         # 9단계: 정리 - 생성한 리소스를 삭제합니다
         if agent is not None:
-            project.agents.delete_agent(agent.id)
+            client.delete_agent(agent.id)
             print("\n에이전트 삭제 완료")
 
+        if uploaded_file is not None:
+            client.files.delete(uploaded_file.id)
+            print("파일 삭제 완료")
+
         if vector_store is not None:
-            project.agents.vector_stores.delete(vector_store.id)
+            client.vector_stores.delete(vector_store.id)
             print("벡터 스토어 삭제 완료")
 
         # 임시 샘플 파일 삭제

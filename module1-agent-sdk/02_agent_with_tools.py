@@ -6,7 +6,8 @@ Code Interpreter를 활성화하여 에이전트가 Python 코드를 실행하�
 import os
 from pathlib import Path
 
-from azure.ai.projects import AIProjectClient
+from azure.ai.agents import AgentsClient
+from azure.ai.agents.models import CodeInterpreterTool
 from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
 
@@ -18,7 +19,7 @@ def main():
     endpoint = os.environ["PROJECT_ENDPOINT"]
     model = os.environ["MODEL_DEPLOYMENT_NAME"]
 
-    project = AIProjectClient(
+    client = AgentsClient(
         endpoint=endpoint,
         credential=DefaultAzureCredential(),
     )
@@ -26,7 +27,8 @@ def main():
     agent = None
     try:
         # 1단계: Code Interpreter 도구가 활성화된 에이전트 생성
-        agent = project.agents.create_agent(
+        code_interpreter = CodeInterpreterTool()
+        agent = client.create_agent(
             model=model,
             name="code-interpreter-agent",
             instructions=(
@@ -34,16 +36,16 @@ def main():
                 "사용자의 요청에 따라 Python 코드를 작성하고 실행하여 결과를 제공하세요. "
                 "한국어로 답변하세요."
             ),
-            tools=[{"type": "code_interpreter"}],
+            tools=code_interpreter.definitions,
         )
         print(f"에이전트 생성 완료 (Code Interpreter 활성화): {agent.id}")
 
         # 2단계: 대화 스레드 생성
-        thread = project.agents.threads.create()
+        thread = client.threads.create()
         print(f"스레드 생성 완료: {thread.id}")
 
         # 3단계: 계산 요청 메시지 추가
-        project.agents.messages.create(
+        client.messages.create(
             thread_id=thread.id,
             role="user",
             content=(
@@ -55,7 +57,7 @@ def main():
         print("메시지 추가 완료")
 
         # 4단계: Run 생성 및 실행
-        run = project.agents.runs.create_and_process(
+        run = client.runs.create_and_process(
             thread_id=thread.id,
             agent_id=agent.id,
         )
@@ -66,10 +68,10 @@ def main():
             return
 
         # 5단계: 에이전트 응답 출력
-        messages = project.agents.messages.list(thread_id=thread.id)
+        messages = list(client.messages.list(thread_id=thread.id))
         print("\n=== 에이전트 응답 ===")
 
-        for msg in reversed(messages.data):
+        for msg in reversed(messages):
             if msg.role == "assistant":
                 for content_block in msg.content:
                     if hasattr(content_block, "text"):
@@ -77,9 +79,9 @@ def main():
 
         # 6단계: Run Steps 확인 - 에이전트가 수행한 단계와 도구 호출 내역을 조회합니다
         print("\n=== Run Steps ===")
-        run_steps = project.agents.run_steps.list(thread_id=thread.id, run_id=run.id)
+        run_steps = list(client.run_steps.list(thread_id=thread.id, run_id=run.id))
 
-        for i, step in enumerate(reversed(run_steps.data), 1):
+        for i, step in enumerate(reversed(run_steps), 1):
             step_type = step.type
             detail = ""
 
@@ -93,7 +95,7 @@ def main():
     finally:
         # 7단계: 정리
         if agent is not None:
-            project.agents.delete_agent(agent.id)
+            client.delete_agent(agent.id)
             print("\n에이전트 삭제 완료")
 
 
