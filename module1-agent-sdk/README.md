@@ -126,19 +126,19 @@ python 01_hello_agent.py
 
 ### 코드 설명
 
-1. **AIProjectClient 생성**: `PROJECT_ENDPOINT`와 `DefaultAzureCredential`을 사용하여 클라이언트를 초기화합니다.
+1. **AgentsClient 생성**: `PROJECT_ENDPOINT`와 `DefaultAzureCredential`을 사용하여 클라이언트를 초기화합니다.
 
-2. **에이전트 생성**: `project.agents.create_agent()`로 에이전트를 만듭니다. `instructions`에 에이전트의 역할과 행동을 정의합니다.
+2. **에이전트 생성**: `client.create_agent()`로 에이전트를 만듭니다. `instructions`에 에이전트의 역할과 행동을 정의합니다.
 
-3. **스레드 생성**: `project.agents.threads.create()`로 대화 스레드를 만듭니다.
+3. **스레드 생성**: `client.threads.create()`로 대화 스레드를 만듭니다.
 
-4. **메시지 추가**: `project.agents.messages.create()`로 사용자 메시지를 스레드에 추가합니다.
+4. **메시지 추가**: `client.messages.create()`로 사용자 메시지를 스레드에 추가합니다.
 
-5. **Run 실행**: `project.agents.runs.create_and_process()`로 에이전트가 메시지를 처리하도록 합니다. 이 메서드는 Run이 완료될 때까지 자동으로 폴링합니다.
+5. **Run 실행**: `client.runs.create_and_process()`로 에이전트가 메시지를 처리하도록 합니다. 이 메서드는 Run이 완료될 때까지 자동으로 폴링합니다.
 
-6. **응답 확인**: `project.agents.messages.list()`로 스레드의 메시지를 조회하고, 에이전트의 응답을 출력합니다.
+6. **응답 확인**: `client.messages.list()`로 스레드의 메시지를 조회하고, 에이전트의 응답을 출력합니다.
 
-7. **정리**: `project.agents.delete_agent()`로 에이전트를 삭제합니다.
+7. **정리**: `client.delete_agent()`로 에이전트를 삭제합니다.
 
 ### 예상 출력
 
@@ -183,7 +183,7 @@ python 02_agent_with_tools.py
 
 3. **Run 실행**: 에이전트가 Code Interpreter를 호출하여 Python 코드로 계산을 수행합니다.
 
-4. **Run Steps 확인**: `project.agents.run_steps.list()`로 에이전트가 수행한 단계를 확인할 수 있습니다. 도구 호출 내역과 코드 실행 결과를 볼 수 있습니다.
+4. **Run Steps 확인**: `client.run_steps.list()`로 에이전트가 수행한 단계를 확인할 수 있습니다. 도구 호출 내역과 코드 실행 결과를 볼 수 있습니다.
 
 ### 예상 출력
 
@@ -224,9 +224,9 @@ python 03_agent_with_file_search.py
 
 ### 코드 설명
 
-1. **벡터 스토어 생성**: `project.agents.vector_stores.create()`로 벡터 스토어를 생성합니다.
+1. **벡터 스토어 생성**: `client.vector_stores.create()`로 벡터 스토어를 생성합니다.
 
-2. **파일 업로드**: 샘플 텍스트 파일을 생성하고 `project.agents.files.upload()`으로 업로드한 뒤, `project.agents.vector_stores.file_batches.create_and_poll()`으로 벡터 스토어에 등록합니다.
+2. **파일 업로드**: 샘플 텍스트 파일을 생성하고 `client.files.upload()`으로 업로드한 뒤, `client.vector_stores.file_batches.create_and_poll()`으로 벡터 스토어에 등록합니다.
 
 3. **에이전트 생성**: `tools=[{"type": "file_search"}]`와 `tool_resources`로 벡터 스토어를 연결합니다.
 
@@ -253,7 +253,7 @@ python 03_agent_with_file_search.py
 
 | 개념 | 설명 |
 |------|------|
-| **AIProjectClient** | Azure AI Foundry 프로젝트에 연결하는 클라이언트 |
+| **AgentsClient** | Azure AI Foundry 에이전트 서비스에 연결하는 클라이언트 |
 | **Agent** | AI 모델 + 지침 + 도구를 결합한 실행 단위 |
 | **Thread** | 대화 세션 (컨텍스트 유지) |
 | **Message** | 스레드 내 개별 메시지 (user/assistant) |
@@ -265,21 +265,21 @@ python 03_agent_with_file_search.py
 
 ```python
 # 1. 클라이언트 생성
-project = AIProjectClient(endpoint=endpoint, credential=credential)
+client = AgentsClient(endpoint=endpoint, credential=credential)
 
 # 2. 에이전트 생성
-agent = project.agents.create_agent(model=model, name="...", instructions="...")
+agent = client.create_agent(model=model, name="...", instructions="...")
 
 # 3. 대화 실행
-thread = project.agents.threads.create()
-project.agents.messages.create(thread_id=thread.id, role="user", content="...")
-run = project.agents.runs.create_and_process(thread_id=thread.id, agent_id=agent.id)
+thread = client.threads.create()
+client.messages.create(thread_id=thread.id, role="user", content="...")
+run = client.runs.create_and_process(thread_id=thread.id, agent_id=agent.id)
 
 # 4. 응답 확인
-messages = project.agents.messages.list(thread_id=thread.id)
+messages = client.messages.list(thread_id=thread.id)
 
 # 5. 정리
-project.agents.delete_agent(agent.id)
+client.delete_agent(agent.id)
 ```
 
 ---
